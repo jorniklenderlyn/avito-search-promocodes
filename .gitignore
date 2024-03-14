@@ -1,6 +1,12 @@
 test.bat
+test2.bat
 av.bat
 out.txt
+main.spec
+test.py
+out.py
+test3.bat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
