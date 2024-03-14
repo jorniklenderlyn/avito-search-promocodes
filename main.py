@@ -15,19 +15,38 @@ import datetime
 g_note_for_promocode = None
 g_prev_promocode = None
 g_quantity_promocode_checked = 0
+g_mode_of_saving = 0
 
 
 class Note:
     def __init__(self, path='note.txt', mode='w', encoding='utf-8'):
         self.file = open(path, mode=mode, encoding=encoding)
 
-    def AddLine(self, data, delimiter):
+    def AddLine(self, data, delimiter=';'):
         if type(list()) == type(data):
             out_data = delimiter.join(list(map(str, data)))
         else:
             out_data = str(data)
         self.file.write(out_data + '\n')
         self.file.flush()
+
+
+class PromocodeStore:
+    def __init__(self, note_name='out.txt', mode_of_saving=0):
+        self.mode_of_saving = mode_of_saving
+        if mode_of_saving == 0:
+            self.store = Note(path=note_name, mode='a', encoding='utf-8')
+            self.store.AddLine(['promocode', 'status'], ';')
+        elif mode_of_saving == 1:
+            self.store = dict()
+    
+    def SavePromocode(self, promocode, message) -> None:
+        if self.mode_of_saving == 0:
+            self.store.AddLine([promocode, message], ';')
+        elif self.mode_of_saving == 1:
+            if message not in self.store:
+                self.store[message] = Note(message + '.txt', mode='a')
+            self.store[message].AddLine(promocode)
 
 
 def check_promocode(browser: WebDriver, promocode: str) -> tuple:
@@ -81,7 +100,8 @@ def solution(login: str, password: str, browser: WebDriver, stratage: int, is_sa
                         browser.refresh()
                 print(promocode, status) if status else None
                 if status:
-                    note_for_good_promocode.AddLine([promocode, message], ';')
+                    g_note_for_promocode.SavePromocode(promocode, message)
+                    # note_for_good_promocode.AddLine([promocode, message], ';')
                 g_quantity_promocode_checked = g_quantity_promocode_checked + 1
     elif stratage == 1:
         letters = list(string.ascii_uppercase + string.digits)
@@ -112,7 +132,8 @@ def solution(login: str, password: str, browser: WebDriver, stratage: int, is_sa
                     #     f.write(str(browser.page_source))
             print(promocode, status) if status else None
             if status:
-                note_for_good_promocode.AddLine([promocode, message], ';')
+                g_note_for_promocode.SavePromocode(promocode, message)
+                # note_for_good_promocode.AddLine([promocode, message], ';')
             g_quantity_promocode_checked = g_quantity_promocode_checked + 1
 
             # browser.refresh()
@@ -197,6 +218,17 @@ if __name__ == '__main__':
             if '{}' in sys.argv[i_template_flag + 1]:
                 template_of_promocode = sys.argv[i_template_flag + 1]
                 print('template', sys.argv[i_template_flag + 1])
+    
+    i_mode_of_saving_flag = None
+    if '-m' in sys.argv:
+        i_mode_of_saving_flag = sys.argv.index('-m')
+    elif '--mode-of-saving' in sys.argv:
+        i_mode_of_saving_flag = sys.argv.index('--mode-of-saving')
+    
+    if i_mode_of_saving_flag:
+        if len(sys.argv) > i_mode_of_saving_flag + 1 and sys.argv[i_mode_of_saving_flag + 1].isdigit:
+            g_mode_of_saving = int(sys.argv[i_mode_of_saving_flag + 1])
+            print('quantity', sys.argv[i_mode_of_saving_flag + 1])
 
     if '--with-set' in sys.argv:
         is_save_prev_promocode = True
@@ -205,9 +237,12 @@ if __name__ == '__main__':
     login = input('login: ')
     password = input('password: ')
 
-    note_name = input('output file name: ')
-    g_note_for_promocode = Note(path=note_name, mode='a', encoding='utf-8')
-    g_note_for_promocode.AddLine(['promocode', 'status'], ';')
+    if g_mode_of_saving == 0:
+        note_name = input('output file name: ')
+        g_note_for_promocode = PromocodeStore(note_name=note_name, mode_of_saving=g_mode_of_saving)
+    elif g_mode_of_saving == 1:
+        g_note_for_promocode = PromocodeStore(mode_of_saving=g_mode_of_saving)
+
     g_prev_promocode = set()
     g_quantity_promocode_checked = 0
     
