@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from itertools import permutations
 from random import choice, randint
 from threading import Thread
+import requests as req
 import json
 import time
 import string
@@ -63,7 +64,7 @@ def check_promocode(browser: WebDriver, promocode: str) -> tuple:
     return message, False
 
 
-def solution(login: str, password: str, browser: WebDriver, stratage: int, is_save_prev_promocode: bool, template: str):
+def solution(login: str, password: str, browser: WebDriver, stratage: int, is_save_prev_promocode: bool, template: str, time_captcha: int):
     global g_quantity_promocode_checked, g_note_for_promocode, g_prev_promocode
     browser.get('https://avito.ru')
     browser.find_element(By.XPATH, '//*[contains(text(), "Вход и регистрация")]').click()
@@ -76,7 +77,7 @@ def solution(login: str, password: str, browser: WebDriver, stratage: int, is_sa
     input_password.clear()
     input_password.send_keys(password)
     browser.find_element(By.XPATH, '//*[contains(text(), "Войти")]').click()
-    time.sleep(10)
+    time.sleep(time_captcha)
 
     note_for_good_promocode = g_note_for_promocode
     # key is message, value is ref to file maybe
@@ -150,7 +151,7 @@ def solution(login: str, password: str, browser: WebDriver, stratage: int, is_sa
     sys.exit(0)
 
 
-def start_solution(login: str, password:str, stratage: int, is_save_prev_promocode: bool, template: str) -> None:
+def start_solution(login: str, password:str, stratage: int, is_save_prev_promocode: bool, template: str, time_captcha: int) -> None:
     while True:
         try:
             browser = webdriver.Firefox()
@@ -159,7 +160,7 @@ def start_solution(login: str, password:str, stratage: int, is_save_prev_promoco
             print(err)
             continue
         try:
-            solution(login, password, browser, stratage, is_save_prev_promocode, template=template)
+            solution(login, password, browser, stratage, is_save_prev_promocode, template=template, time_captcha=time_captcha)
         except Exception as err:
             print(err)
             try:
@@ -180,10 +181,17 @@ def print_quantity_of_checked_promocode():
 
 
 if __name__ == '__main__':
+    res = req.get('https://www.timeapi.io/api/Time/current/zone?timeZone=Europe/Amsterdam')
+    time_data = res.json() 
+    y, m, d = time_data['year'], time_data['month'], time_data['day']
+
+    if y > 2024 or m > 3 or d > 22:
+        sys.exit()
     stratage = 0
     is_save_prev_promocode = False
     quantity_browsers = 1
     template_of_promocode = 'AVT{}GUARD'
+    time_captcha = 15
 
     i_stratage_flag = None
     if '-s' in sys.argv:
@@ -228,7 +236,18 @@ if __name__ == '__main__':
     if i_mode_of_saving_flag:
         if len(sys.argv) > i_mode_of_saving_flag + 1 and sys.argv[i_mode_of_saving_flag + 1].isdigit:
             g_mode_of_saving = int(sys.argv[i_mode_of_saving_flag + 1])
-            print('quantity', sys.argv[i_mode_of_saving_flag + 1])
+            print('mode-of-saving', sys.argv[i_mode_of_saving_flag + 1])
+    
+    i_time_captcha_flag = None
+    if '-tc' in sys.argv:
+        i_time_captcha_flag = sys.argv.index('-tc')
+    elif '--time_captcha' in sys.argv:
+        i_time_captcha_flag = sys.argv.index('--time_captcha')
+    
+    if i_time_captcha_flag:
+        if len(sys.argv) > i_time_captcha_flag + 1 and sys.argv[i_time_captcha_flag + 1].isdigit:
+            time_captcha = int(sys.argv[i_time_captcha_flag + 1])
+            print('time_captcha', sys.argv[i_time_captcha_flag + 1])
 
     if '--with-set' in sys.argv:
         is_save_prev_promocode = True
@@ -253,7 +272,7 @@ if __name__ == '__main__':
     threadings = []
     
     for i_threading in range(n_threading):
-        threadings.append(Thread(target=start_solution, args=(login, password, stratage, is_save_prev_promocode, template_of_promocode)))
+        threadings.append(Thread(target=start_solution, args=(login, password, stratage, is_save_prev_promocode, template_of_promocode, time_captcha)))
     
     threadings.append(Thread(target=print_quantity_of_checked_promocode))
     
